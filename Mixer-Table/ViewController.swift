@@ -9,158 +9,144 @@ import Foundation
 import UIKit
 
 enum Section: Hashable {
-    case first
+    case numbers
 }
 
-struct Detail: Hashable {
-    var title: Int
-    var checkMark: Bool
-    var index: Int
+struct SectionData {
+    var key: Section
+    var values: [Int]
 }
 
-typealias Details = [Detail]
+struct CellData: Hashable {
+    let title: Int
+    var isMarked: Bool = false
+}
+
+typealias Data = [CellData]
 
 class ViewController: UIViewController {
     
-    var details = Details()
-    var dataSource: UITableViewDiffableDataSource<Section, Detail>?
+    private let cellIdentifier = "cell"
+    
+    private var data = Data()
+    
+    private lazy var tableView: UITableView = {
+        let tableView = UITableView(frame: .zero, style: .insetGrouped)
+        tableView.translatesAutoresizingMaskIntoConstraints = false
+        tableView.backgroundColor = .systemGray6
+        tableView.delegate = self
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: cellIdentifier)
+        return tableView
+    }()
+    
+    private lazy var dataSource: UITableViewDiffableDataSource<Section, CellData> = {
+        UITableViewDiffableDataSource(tableView: tableView) { tableView, indexPath, itemIdentifier in
+            let cell = tableView.dequeueReusableCell(withIdentifier: self.cellIdentifier, for: indexPath)
+            var configuration = cell.defaultContentConfiguration()
+            configuration.text = String(itemIdentifier.title)
+            cell.accessoryType = self.data[indexPath.row].isMarked ? .checkmark : .none
+            cell.contentConfiguration = configuration
+            return cell
+        }
+    }()
     
     private lazy var shuffleButton: UIBarButtonItem = {
         let button = UIBarButtonItem()
         button.title = "Shuffle"
+        button.style = .plain
         button.target = self
-        button.action = #selector(buttonDidTapped)
+        button.action = #selector(shuffleButtonTapped)
         return button
     }()
     
-    private lazy var table: UITableView = {
-        let table = UITableView()
-        table.backgroundColor = .systemGray6
-        table.translatesAutoresizingMaskIntoConstraints = false
-        table.layer.cornerRadius = 10
-        table.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
-        return table
-    }()
-
     override func viewDidLoad() {
         super.viewDidLoad()
+        createData()
+        setupView()
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        reloadTable(animated: true)
+    }
+    
+    private func createData() {
+        for i in 1...50 {
+            data.append(CellData(title: i))
+        }
+    }
+    
+    private func setupView() {
         view.backgroundColor = .systemGray6
         title = "Mixer-Table"
         navigationItem.rightBarButtonItem = shuffleButton
-        view.addSubview(table)
         setConstraints()
-        
-        for i in 0...32 {
-            details.append(Detail(title: i, checkMark: false, index: 1))
-        }
-        details.sort { $0.index < $1.index }
-        table.delegate = self
-        createDataSource()
-        reloadData()
-    }
-
-    @objc private func buttonDidTapped() {
-        self.details.shuffle()
-        dataSource?.defaultRowAnimation = .automatic
-        reloadData()
-    }
-
-    
-    private func createDataSource() {
-        dataSource = UITableViewDiffableDataSource<Section, Detail>(
-            tableView: table,
-            cellProvider: { tableView, indexPath, itemIdentifier in
-                var cell: UITableViewCell
-                
-                if let reuseCell = tableView.dequeueReusableCell(withIdentifier: "cell") {
-                    cell = reuseCell
-                } else {
-                    cell = UITableViewCell(style: .default, reuseIdentifier: "cell")
-                }
-                
-                var configuration = cell.defaultContentConfiguration()
-                configuration.text = String(itemIdentifier.title)
-                cell.contentConfiguration = configuration
-                if itemIdentifier.checkMark == true {
-                    cell.accessoryView = UIImageView(image: UIImage(systemName: "checkmark"))
-                } else {
-                    cell.accessoryView = nil
-                }
-                
-                return cell
-        })
     }
     
-    private func reloadData() {
-        var snapshot = NSDiffableDataSourceSnapshot<Section, Detail>()
-        snapshot.appendSections([.first])
-        snapshot.appendItems(details, toSection: .first)
-        dataSource?.apply(snapshot, animatingDifferences: true)
+    private func reloadTable(animated: Bool) {
+        var snapshot = NSDiffableDataSourceSnapshot<Section, CellData>()
+        snapshot.appendSections([.numbers])
+        snapshot.appendItems(data, toSection: .numbers)
+        dataSource.apply(snapshot, animatingDifferences: animated)
     }
     
-    private func moveRowUp(index: IndexPath) {
-        var snapshot = NSDiffableDataSourceSnapshot<Section, Detail>()
-        snapshot.appendSections([.first])
-        snapshot.appendItems(details, toSection: .first)
-        
-        let itemFirst = snapshot.itemIdentifiers[0]
-        let indexCurrent = snapshot.itemIdentifiers[index.row]
-        if index.row != 0 {
-            snapshot.moveItem(indexCurrent, beforeItem: itemFirst)
-            
-            if index.row != 0 {
-                let item = details[index.row]
-                details.remove(at: index.row)
-                details.insert(item, at: 0)
-            }
-            
-            UIView.animate(withDuration: 0.5) {
-                self.dataSource?.apply(snapshot, animatingDifferences: true)
-            }
-            
-        }
+    @objc private func shuffleButtonTapped() {
+        data.shuffle()
+        reloadTable(animated: true)
     }
     
-    
-    private func addCheckMark(index: IndexPath) {
-        var snapshot = NSDiffableDataSourceSnapshot<Section, Detail>()
-        snapshot.appendSections([.first])
-        if self.details[index.row].checkMark == false {
-            self.details[index.row].checkMark = true
-        } else {
-            self.details[index.row].checkMark = false
-        }
-        
-        snapshot.appendItems(details, toSection: .first)
-        dataSource?.apply(snapshot, animatingDifferences: false)
-    }
 }
 
-
-extension ViewController {
-    private func setConstraints() {
+private extension ViewController {
+    func setConstraints() {
+        view.addSubview(tableView)
+        
         let constraints: [NSLayoutConstraint] = [
-            table.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 30),
-            table.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            table.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            table.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
-            
+            tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            tableView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            tableView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
+            tableView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
         ]
         
         NSLayoutConstraint.activate(constraints)
     }
 }
 
+
 extension ViewController: UITableViewDelegate {
+    private func moveRow(index: IndexPath) {
+        var snapshot = NSDiffableDataSourceSnapshot<Section, CellData>()
+        snapshot.appendSections([.numbers])
+        snapshot.appendItems(data, toSection: .numbers)
+        let itemFirst = snapshot.itemIdentifiers[0]
+        let indexCurrent = snapshot.itemIdentifiers[index.row]
+        if index.row != 0 {
+            snapshot.moveItem(indexCurrent, beforeItem: itemFirst)
+            let item = data[index.row]
+            data.remove(at: index.row)
+            data.insert(item, at: 0)
+        }
+        UIView.animate(withDuration: 0.5) {
+            self.dataSource.apply(snapshot, animatingDifferences: true)
+        }
+    }
+    
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        addCheckMark(index: indexPath)
-        if let item = dataSource?.itemIdentifier(for: indexPath) {
-            if item.checkMark == true {
-                moveRowUp(index: indexPath)
+        
+        guard let sectionIndex = dataSource.sectionIdentifier(for: indexPath.section) else {
+            return
+        }
+        
+        dataSource.defaultRowAnimation = .fade
+        if sectionIndex == .numbers {
+            data[indexPath.row].isMarked.toggle()
+            if data[indexPath.row].isMarked {
+                moveRow(index: indexPath)
             } else {
-                reloadData()
+                reloadTable(animated: false)
             }
+
         }
     }
 }
