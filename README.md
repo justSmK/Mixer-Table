@@ -6,6 +6,4 @@
 - [ ] Если нажать на ячейку с галочкой, то галочка пропадает.
 - [ ] Справа вверху кнопка анимированно перемешивает ячейки.
 
-
-https://github.com/justSmK/Mixer-Table/assets/28645140/857bdd6a-86af-49d6-9401-b081f3749491
-
+https://github.com/justSmK/Mixer-Table/assets/28645140/76c0f179-10dd-48e8-a262-bf270df2cd70
